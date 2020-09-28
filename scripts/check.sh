@@ -1,18 +1,20 @@
 #!/bin/bash
 
-set -ex
+set -euo pipefail
 
-: "${SLACK_URL:?}"
+# : "${SLACK_URL:?}"
+# docker login -u "iamapikey" -p ${DOCKER_API_KEY} "icr.io"
+apt-get update
+apt-get install docker-ce docker-ce-cli containerd.io
+service docker start
+service docker status
+trap 'service docker stop' EXIT
 
-docker login -u "iamapikey" -p ${DOCKER_API_KEY} "icr.io"
-# export REGISTRY="icr.io/obs/codeengine/buildpacks"
-
-
-function post_to_slack() {
-  ce_image_run_time="$1"
-  paketo_image_run_time="$2"
-  curl -X POST --data "payload={\"text\": \"<!here> paketo image has been updated:\n PAKETO_IMAGE_RUN_TIME is ${paketo_image_run_time}\n CE_IMAGE_RUN_TIME is ${ce_image_run_time}\"}" "${SLACK_URL}"
-}
+# function post_to_slack() {
+#   ce_image_run_time="$1"
+#   paketo_image_run_time="$2"
+#   curl -X POST --data "payload={\"text\": \"<!here> paketo image has been updated:\n PAKETO_IMAGE_RUN_TIME is ${paketo_image_run_time}\n CE_IMAGE_RUN_TIME is ${ce_image_run_time}\"}" "${SLACK_URL}"
+# }
 
 echo "[INFO] Pull the newest paketo buidler iamge" >&2
 docker pull "index.docker.io/paketobuildpacks/builder:full" >&2
@@ -40,14 +42,14 @@ tag=$(sed -n '5p' docs/supported-runtime-version-for-buildpack-builder.md | cut 
 tags=(${tag/(/ })
 CE_LATEST_IMAGE_TAG=${tags[0]}
 echo "${CE_LATEST_IMAGE_TAG}"
-echo "[INFO] Pull code engine builder image, ${REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" >&2
-docker pull "${REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" >&2
+echo "[INFO] Pull code engine builder image, ${CODE_ENGINE_REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" >&2
+docker pull "${CODE_ENGINE_REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" >&2
 echo "[INFO] Parse the digest, id and run-time version of code engine builder image" >&2
-CE_IMAGE_ID=$(docker inspect "${REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" | jq -r '.[]."Id"' | sed 's/sha256\://g')
-CE_IMAGE_DIGEST=$(docker inspect "${REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" | jq -r '.[]."RepoDigests"' | sed 's/paketobuildpacks\/builder@//g')
-CE_IMAGE_RUN_TIME=$(docker inspect "${REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" | jq -r '.[].Config.Labels."io.buildpacks.buildpack.order"')
-echo "[INFO] ${REGISTRY}/builder:${CE_LATEST_IMAGE_TAG} ID: ${CE_IMAGE_ID}" >&2
-echo "[INFO] ${REGISTRY}/builder:${CE_LATEST_IMAGE_TAG} digest: ${CE_IMAGE_DIGEST}" >&2
+CE_IMAGE_ID=$(docker inspect "${CODE_ENGINE_REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" | jq -r '.[]."Id"' | sed 's/sha256\://g')
+CE_IMAGE_DIGEST=$(docker inspect "${CODE_ENGINE_REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" | jq -r '.[]."RepoDigests"' | sed 's/paketobuildpacks\/builder@//g')
+CE_IMAGE_RUN_TIME=$(docker inspect "${CODE_ENGINE_REGISTRY}/builder:${CE_LATEST_IMAGE_TAG}" | jq -r '.[].Config.Labels."io.buildpacks.buildpack.order"')
+echo "[INFO] ${CODE_ENGINE_REGISTRY}/builder:${CE_LATEST_IMAGE_TAG} ID: ${CE_IMAGE_ID}" >&2
+echo "[INFO] ${CODE_ENGINE_REGISTRY}/builder:${CE_LATEST_IMAGE_TAG} digest: ${CE_IMAGE_DIGEST}" >&2
 echo "[INFO] supported run-time version: ${CE_IMAGE_RUN_TIME}" >&2
 
 echo "[INFO] Compare CE builder image with paketo builder image" >&2
@@ -62,7 +64,8 @@ fi
 
 if [[ ${PAKETO_IMAGE_UPDATE} == true ]]; then
     echo "[INFO] Notify in slack channel"
-    post_to_slack "${CE_IMAGE_RUN_TIME}" "${PAKETO_IMAGE_RUN_TIME}"
+    # post_to_slack "${CE_IMAGE_RUN_TIME}" "${PAKETO_IMAGE_RUN_TIME}"
 fi
+exit 0
 
 

@@ -1,6 +1,6 @@
 #!/bin/bash
-source ./check.sh
-set -ex
+source $(pwd)/build-buildpack-builder/scripts/check.sh
+set -euo pipefail
 
 echo "[INFO] Submit PR to source-to-image repo to modify all related buildstrategies and generate docs"
 echo "${CODE_ENGINE_REGISTRY}/builder:${IMAGE_TAG}"
@@ -63,3 +63,4 @@ set +x
 API_RELEASE_URL="https://github.ibm.com/api/v3/repos/${SOURCE_TO_IMAGE_REPOSITORY}/pulls?access_token=${GITHUB_TOKEN}"
 set -x
 curl -d "${API_JSON}" "${API_RELEASE_URL}"
+exit 0

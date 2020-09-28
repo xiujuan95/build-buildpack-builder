@@ -1,0 +1,11 @@
+spruce:
+- base: pipeline.yml
+  merge:
+  to: /tmp/final-pipeline.yml
+
+fly:
+  config: /tmp/final-pipeline.yml
+  name: $PIPELINE
+  target: $TARGET
+  load_vars_from:
+    - vars.yml

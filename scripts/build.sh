@@ -1,6 +1,13 @@
 #!/bin/bash
-source ./check.sh
-set -ex
+source $(pwd)/build-buildpack-builder/scripts/check.sh
+echo "$(pwd)/build-buildpack-builder/scripts/check.sh"
+set -euo pipefail
+
+apt-get update
+apt-get install docker-ce docker-ce-cli containerd.io
+service docker start
+service docker status
+trap 'service docker stop' EXIT
 
 echo "[INFO] Just for check ${PAKETO_IMAGE_UPDATE}, ${IMAGE_TAG}"
 if [[ ${PAKETO_IMAGE_UPDATE} == true ]]; then
@@ -19,3 +26,4 @@ if [[ ${PAKETO_IMAGE_UPDATE} == true ]]; then
 else
     echo "[INFO] Don't need to build CodeEngine buildpack builder image again"
 fi
+exit 0

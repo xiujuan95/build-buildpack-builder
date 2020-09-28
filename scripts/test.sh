@@ -1,6 +1,6 @@
 #!/bin/bash
-source ./check.sh
-set -ex
+source $(pwd)/build-buildpack-builder/scripts/check.sh
+set -euo pipefail
 
 cd ..
 WORKSPACE="$(cd "$(dirname "${BASH_SOURCE[0]}")/" && pwd)"
@@ -35,3 +35,4 @@ pushd "${WORKSPACE}/test-builder" >/dev/null 2>&1
   # go test -args "${fs3fixtures}" -v
 popd
 echo
+exit 0

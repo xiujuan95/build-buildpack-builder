@@ -1,33 +1,57 @@
 ---
-resources:
-- name: paketo-image
+resource_types:
+- name: slack-notification
   type: docker-image
-  tags: [buildpacks]
+  source:
+    repository: cfcommunity/slack-notification-resource
+
+resources:
+- name: build-buildpack-builder
+  type: git
   check_every: 2m
   source:
-    repository: index.docker.io/paketobuildpacks/builder
+    uri: https://github.com/xiujuan95/build-buildpack-builder
+    branch: master
+    # private_key: ((git-private-key))
+    disable_ci_skip: true
+
+- name: paketo-image
+  type: docker-image
+  check_every: 2m
+  source:
+    repository: paketobuildpacks/builder
     tag: full
+
+# - name: slack
+#   type: slack-notification
+#   tags: [buildpacks]
+#   source:
+#     url: ((slack-webhook))
 
 jobs:
 - name: check-paketo-update
   plan:
+  - get: build-buildpack-builder
+    trigger: true
   - get: paketo-image
-    tags: [buildpacks]
     trigger: true
   - task: check
-    tags: [buildpacks]
-    on_failure:
-      put: slack
-      params:
-        text: |
-          :exclamation: $BUILD_PIPELINE_NAME pipeline failed at step $BUILD_JOB_NAME! <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View>
+    privileged: true
+    # tags: [buildpacks]
+    # on_failure:
+    #   put: slack
+    #   params:
+    #     text: |
+    #       :exclamation: $BUILD_PIPELINE_NAME pipeline failed at step $BUILD_JOB_NAME! <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View>
     config:
       platform: linux
-      image_resource: { type: docker-image, source: { repository: bluebosh/bwb, tag: ((bwb-image-version)) } }
+      image_resource: { type: docker-image, source: { repository: bluebosh/bwb, tag: latest } }
       inputs:
       - name: paketo-image
+      - name: build-buildpack-builder
+        path: build-buildpack-builder
       params:
-        SLACK_URL: ((aio-bosh-sl-cpi-slack-url))
+        # SLACK_URL: ((slack-url))
         CODE_ENGINE_REGISTRY: "icr.io/obs/codeengine/buildpacks"
         SOURCE_TO_IMAGE_REPOSITORY: "coligo/source-to-image"
       run:
@@ -38,22 +62,25 @@ jobs:
 
 - name: build-buildpack-builder
   plan:
+  - get: build-buildpack-builder
+    trigger: true
   - get: paketo-image
-    tags: [buildpacks]
     passed: [check-paketo-update]
     trigger: true
   - task: build
-    tags: [buildpacks]
-    on_failure:
-      put: slack
-      params:
-        text: |
-          :exclamation: $BUILD_PIPELINE_NAME pipeline failed at step $BUILD_JOB_NAME! <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View>
+    privileged: true
+    # on_failure:
+    #   put: slack
+    #   params:
+    #     text: |
+    #       :exclamation: $BUILD_PIPELINE_NAME pipeline failed at step $BUILD_JOB_NAME! <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View>
     config:
       platform: linux
-      image_resource: { type: docker-image, source: { repository: bluebosh/bwb, tag: ((bwb-image-version)) } }
+      image_resource: { type: docker-image, source: { repository: bluebosh/bwb, tag: latest } }
       inputs:
       - name: paketo-image
+      - name: build-buildpack-builder
+        path: build-buildpack-builder
       params:
         CODE_ENGINE_REGISTRY: "icr.io/obs/codeengine/buildpacks"
         SOURCE_TO_IMAGE_REPOSITORY: "coligo/source-to-image"
@@ -65,22 +92,25 @@ jobs:
 
 - name: test-buildpack-builder
   plan:
+  - get: build-buildpack-builder
+    trigger: true
   - get: paketo-image
-    tags: [buildpacks]
     passed: [build-buildpack-builder]
     trigger: true
   - task: test
-    tags: [buildpacks]
-    on_failure:
-      put: slack
-      params:
-        text: |
-          :exclamation: $BUILD_PIPELINE_NAME pipeline failed at step $BUILD_JOB_NAME! <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View>
+    privileged: true
+    # on_failure:
+    #   put: slack
+    #   params:
+    #     text: |
+    #       :exclamation: $BUILD_PIPELINE_NAME pipeline failed at step $BUILD_JOB_NAME! <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View>
     config:
       platform: linux
-      image_resource: { type: docker-image, source: { repository: bluebosh/bwb, tag: ((bwb-image-version)) } }
+      image_resource: { type: docker-image, source: { repository: bluebosh/bwb, tag: latest } }
       inputs:
       - name: paketo-image
+      - name: build-buildpack-builder
+        path: build-buildpack-builder
       params:
         CODE_ENGINE_REGISTRY: "icr.io/obs/codeengine/buildpacks"
         SOURCE_TO_IMAGE_REPOSITORY: "coligo/source-to-image"
@@ -92,22 +122,25 @@ jobs:
 
 - name: submit-pr
   plan:
+  - get: build-buildpack-builder
+    trigger: true
   - get: paketo-image
-    tags: [buildpacks]
     passed: [test-buildpack-builder]
     trigger: true
   - task: pr
-    tags: [buildpacks]
-    on_failure:
-      put: slack
-      params:
-        text: |
-          :exclamation: $BUILD_PIPELINE_NAME pipeline failed at step $BUILD_JOB_NAME! <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View>
+    privileged: true
+    # on_failure:
+    #   put: slack
+    #   params:
+    #     text: |
+    #       :exclamation: $BUILD_PIPELINE_NAME pipeline failed at step $BUILD_JOB_NAME! <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View>
     config:
       platform: linux
-      image_resource: { type: docker-image, source: { repository: bluebosh/bwb, tag: ((bwb-image-version)) } }
+      image_resource: { type: docker-image, source: { repository: bluebosh/bwb, tag: latest } }
       inputs:
       - name: paketo-image
+      - name: build-buildpack-builder
+        path: build-buildpack-builder
       params:
         CODE_ENGINE_REGISTRY: "icr.io/obs/codeengine/buildpacks"
         SOURCE_TO_IMAGE_REPOSITORY: "coligo/source-to-image"
